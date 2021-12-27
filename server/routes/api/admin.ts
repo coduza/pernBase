@@ -3,13 +3,13 @@ const router = express.Router();
 
 // Load User model
 const User = require("../../models/User");
-const Assign = require("../../models/Assign");
+const Verification = require("../../models/Verifications");
+const Token = require("../../models/Tokens");
 
 // middleware
 const auth = require('../../middleware/check-auth');
-const fs = require("fs");
 const bcrypt = require("bcryptjs");
-const cors = require('cors')
+const cors = require('cors');
 
 // validation
 const validateRegisterInput = require("../../validation/register");
@@ -19,12 +19,9 @@ const validateEditUserInput = require("../../validation/edit-user");
 const jwt = require("jsonwebtoken");
 const keys = require("../../config/keys");
 const {data} = require("browserslist");
-
 const multer = require('multer')
 const {v4: uuidV4} = require('uuid');
-const Verification = require("../../models/Verifications");
 const nodemailer = require("nodemailer");
-const Token = require("../../models/Tokens");
 
 const CORS_URL = keys.CORS_URL;
 // CORS
@@ -32,6 +29,22 @@ const corsOptions = {
     origin: CORS_URL,
     optionsSuccessStatus: 200 // some legacy browsers (IE11, various SmartTVs) choke on 204
 }
+
+const pool = require("../../db");
+
+// get user information - DEMO
+router.route('/db').get(cors(corsOptions), async (req, res) => {
+
+    try {
+        const user = await pool.query(
+            "SELECT * FROM users"
+        );
+        res.json(user.rows);
+    } catch (err) {
+        console.error(err.message);
+    }
+
+})
 
 // admin dashboard features
 // users
@@ -311,9 +324,6 @@ router.route('/users/delete').post(cors(corsOptions), auth.isAuthenticated, (req
             let email = data2.email;
             User.deleteOne({_id: {$eq: id}}).then(async data1 => {
                 await Verification.deleteMany({email: {$eq: email}}).then(async data12 => {
-                    await Assign.deleteMany({instructor: {$eq: id}}).then(async data7 => {
-
-
                         // register email function
                         async function registerEmail() {
                             let transporter = nodemailer.createTransport({
@@ -368,20 +378,12 @@ router.route('/users/delete').post(cors(corsOptions), auth.isAuthenticated, (req
 
                         await registerEmail().then(r => {
                             console.log("Full success")
-                            res.status(200).json(data7);
+                            res.status(200).json(data12);
                         }).catch(err => {
                             return res
                                 .status(404)
                                 .json({errorsendingemail: "Error while sending email"});
                         })
-
-
-                    }).catch(err7 => {
-                        console.log(err7);
-                        return res
-                            .status(404)
-                            .json({internalError: "Unexpected error occurred! Please try again."});
-                    })
                 }).catch(err12 => {
                     console.log(err12);
                     return res
